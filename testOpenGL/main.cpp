@@ -2,9 +2,17 @@
 #include <GLFW\glfw3.h>
 
 #include <iostream>
+#include <vector>
+#include <fstream>
+#include <string>
+
+const char* SHADER_VERTEX_FILEPATH = "./shaders/vert.vert";
+const char* SHADER_FRAGMENT_FILEPATH = "./shaders/frag.frag";
 
 void framebuffer_size_callback( GLFWwindow* window, int width, int height );
 void processInput( GLFWwindow* window );
+
+void readShader(const char* fileName, std::vector<char *> &lines);
 
 int main() 
 {
@@ -57,4 +65,22 @@ void processInput( GLFWwindow* window )
 {
 	if ( glfwGetKey( window, GLFW_KEY_ESCAPE ) == GLFW_PRESS )
 		glfwSetWindowShouldClose( window, true );
+}
+
+void readShader( const char* fileName, std::vector<char*> &lines )
+{
+	for ( auto& eachLine : lines )
+		delete[] eachLine;
+	lines.clear();
+
+	char* rawPointToString = nullptr;
+	std::ifstream file( fileName );
+	for ( std::string line; std::getline( file, line ); ) {
+		rawPointToString = new char[line.length() + 1];
+		std::copy( line.begin(), line.end(), rawPointToString );
+		rawPointToString[line.length() + 1] = '\0';
+		lines.push_back( rawPointToString );
+	}
+	if ( !lines.size() )
+		std::cerr << "Nothing was read from shader:" << fileName << std::endl;
 }
