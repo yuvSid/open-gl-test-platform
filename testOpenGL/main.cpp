@@ -116,6 +116,7 @@ void readShader( const char *fileName, std::vector<char> &lines ) noexcept( fals
 	std::ifstream file( fileName );
 	if ( !file.is_open() )
 		throw ( std::string( "SHADER::FILE::Can't open file: " ) + std::string( fileName ) );
+	std::noskipws( file );
 	std::copy( std::istream_iterator<char>( file ), 
 			   std::istream_iterator<char>(),
 			   std::back_inserter( lines ) );
@@ -134,10 +135,15 @@ void initializeShaders() noexcept( false )
 	char infoLog[BUFFER_SIZE];
 
 	try {
+		std::cout << SHADER_VERTEX_FILEPATH << " INITIALIZATION!\n";
 		readShader( SHADER_VERTEX_FILEPATH, shaderSource );
 		compileShader( vertexShader, shaderSource );
+		std::cout << "SHADER::COMPILE::Success!\n";
+		std::cout << SHADER_FRAGMENT_FILEPATH << " INITIALIZATION!\n";
 		readShader( SHADER_FRAGMENT_FILEPATH, shaderSource );
 		compileShader( fragmentShader, shaderSource );
+		std::cout << "SHADER::COMPILE::Success!\n";
+
 	}
 	catch ( unsigned int &shader ) {
 		glGetShaderInfoLog( shader, BUFFER_SIZE, NULL, infoLog );
