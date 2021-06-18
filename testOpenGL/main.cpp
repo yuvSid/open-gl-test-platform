@@ -8,11 +8,12 @@
 
 const char* SHADER_VERTEX_FILEPATH = "./shaders/vert.vert";
 const char* SHADER_FRAGMENT_FILEPATH = "./shaders/frag.frag";
+const unsigned int BUFFER_SIZE = 512;
 
 void framebuffer_size_callback( GLFWwindow* window, int width, int height );
 void processInput( GLFWwindow* window );
 
-void readShader(const char* fileName, std::vector<char *> &lines);
+void initializeShaders() noexcept(false);
 
 int main() 
 {
@@ -38,7 +39,29 @@ int main()
 	}
 	glfwSetFramebufferSizeCallback( window, framebuffer_size_callback );
 
-	glClearColor( 1.f, 1.f, 0.f, 1.f );
+	//hardcoded triangle
+	float vertices[] = {
+		-0.5f, -0.5f, 0.0f,
+		 0.5f, -0.5f, 0.0f,
+		 0.0f,  0.5f, 0.0f
+	};
+	unsigned int VBO;
+	glGenBuffers( 1, &VBO );
+	glBindBuffer( GL_ARRAY_BUFFER, VBO );
+	glBufferData( GL_ARRAY_BUFFER, sizeof( vertices ), vertices, GL_STATIC_DRAW );
+
+	//intialize shaders
+	try {
+		initializeShaders();
+	}
+	catch ( std::exception& e ) {
+		std::cerr << e.what() << std::endl;
+		std::cerr << "Class: " << typeid( e ).name() << std::endl;
+		glfwTerminate();
+		return -1;
+	}
+
+	glClearColor( 0.5f, 0.5f, 0.5f, 1.f );
 	//main loop
 	while ( !glfwWindowShouldClose( window ) ) {
 		//input
@@ -67,20 +90,81 @@ void processInput( GLFWwindow* window )
 		glfwSetWindowShouldClose( window, true );
 }
 
-void readShader( const char* fileName, std::vector<char*> &lines )
+
+void cleanShadersInitialize( unsigned int vertexShader, unsigned int fragmentShader)
 {
-	for ( auto& eachLine : lines )
-		delete[] eachLine;
+	glDeleteShader( vertexShader );
+	glDeleteShader( fragmentShader );
+}
+
+void compileShader( unsigned int shader, std::vector<char> &shaderSource ) noexcept( false )
+{
+	int success;
+	
+	const char* data = shaderSource.data();
+	glShaderSource( shader, 1, &data, NULL );
+	glCompileShader( shader );
+	glGetShaderiv( shader, GL_COMPILE_STATUS, &success );
+	if ( !success )
+		throw ( shader );
+}
+
+void readShader( const char *fileName, std::vector<char> &lines ) noexcept( false )
+{
 	lines.clear();
 
-	char* rawPointToString = nullptr;
 	std::ifstream file( fileName );
-	for ( std::string line; std::getline( file, line ); ) {
-		rawPointToString = new char[line.length() + 1];
-		std::copy( line.begin(), line.end(), rawPointToString );
-		rawPointToString[line.length() + 1] = '\0';
-		lines.push_back( rawPointToString );
-	}
+	if ( !file.is_open() )
+		throw ( std::string( "SHADER::FILE::Can't open file: " ) + std::string( fileName ) );
+	std::copy( std::istream_iterator<char>( file ), 
+			   std::istream_iterator<char>(),
+			   std::back_inserter( lines ) );
 	if ( !lines.size() )
-		std::cerr << "Nothing was read from shader:" << fileName << std::endl;
+		throw ( std::string( "SHADER::FILE::Nothing was readen, file: " ) + std::string( fileName ) );
+	else
+		lines.push_back( '\0' );
 }
+
+void initializeShaders() noexcept( false )
+{
+	std::vector<char> shaderSource; //dont forget to manually clean memory allocated inside
+	unsigned int vertexShader = glCreateShader( GL_VERTEX_SHADER );
+	unsigned int fragmentShader = glCreateShader( GL_FRAGMENT_SHADER );
+	int success;
+	char infoLog[BUFFER_SIZE];
+
+	try {
+		readShader( SHADER_VERTEX_FILEPATH, shaderSource );
+		compileShader( vertexShader, shaderSource );
+		readShader( SHADER_FRAGMENT_FILEPATH, shaderSource );
+		compileShader( fragmentShader, shaderSource );
+	}
+	catch ( unsigned int &shader ) {
+		glGetShaderInfoLog( shader, BUFFER_SIZE, NULL, infoLog );
+		cleanShadersInitialize( vertexShader, fragmentShader );
+		throw( std::runtime_error( std::string( "SHADER::COMPILE::Failed!\n" ) 
+									+ std::string( infoLog ) ) );
+	}
+	catch ( std::string &description ) { 
+		cleanShadersInitialize( vertexShader, fragmentShader );
+		throw( std::runtime_error( description ) );
+	}
+
+	//create shader programm
+	unsigned int shaderProgram;
+	shaderProgram = glCreateProgram();
+	glAttachShader( shaderProgram, vertexShader );
+	glAttachShader( shaderProgram, fragmentShader );
+	glLinkProgram( shaderProgram );
+	glGetProgramiv( shaderProgram, GL_LINK_STATUS, &success );
+	if ( !success ) {
+		glGetProgramInfoLog( shaderProgram, BUFFER_SIZE, NULL, infoLog );
+		cleanShadersInitialize( vertexShader, fragmentShader );
+		throw( std::runtime_error( std::string( "SHADER::PROGRAMM::Link failed!\n" ) 
+									+ std::string( infoLog ) ) );
+	}
+	glUseProgram( shaderProgram );
+	cleanShadersInitialize( vertexShader, fragmentShader );
+}
+
+
