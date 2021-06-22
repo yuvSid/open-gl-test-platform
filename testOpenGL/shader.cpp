@@ -40,6 +40,18 @@ Shader::Shader( const char* vertexPath, const char* fragmentPath )
 	initializeShaders( vertexPath, fragmentPath );
 }
 
+
+Shader::~Shader()
+{
+	int curProgInUse = 0;
+	glGetIntegerv( GL_CURRENT_PROGRAM, &curProgInUse );
+	if ( curProgInUse == ( int )ID ) {
+		std::cerr << "SHADER::DESTRUCTOR::Active program deleted!\n";
+		glUseProgram( 0 );
+	}
+	glDeleteProgram( ID );
+}
+
 void Shader::use()
 {
 	glUseProgram( ID );
