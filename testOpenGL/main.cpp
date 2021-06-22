@@ -4,19 +4,19 @@
 #include <iostream>
 #include <vector>
 #include <array>
-#include <fstream>
 #include <string>
+
+#include "shader.h"
 
 const char* SHADER_VERTEX_FILEPATH = "./shaders/vert.vert";
 const char* SHADER_FRAGMENT_FILEPATH = "./shaders/frag.frag";
-const unsigned int BUFFER_SIZE = 512;
 
 void framebuffer_size_callback( GLFWwindow* window, int width, int height );
 void processInput( GLFWwindow* window );
 
 void initializeWindow(GLFWwindow** pWindow) noexcept(false);
 void setUpWindow( GLFWwindow* window ) noexcept;
-void initializeShaders() noexcept(false);
+
 
 int main() 
 {
@@ -24,7 +24,7 @@ int main()
 
 	try {
 		initializeWindow( &window );
-		initializeShaders();
+		Shader defaultShader( SHADER_VERTEX_FILEPATH, SHADER_FRAGMENT_FILEPATH );
 	}
 	catch ( std::exception& e ) {
 		std::cerr << e.what() << std::endl;
@@ -121,86 +121,8 @@ void setUpWindow( GLFWwindow* window ) noexcept
 }
 
 
-void cleanShadersInitialize( unsigned int vertexShader, unsigned int fragmentShader)
-{
-	glDeleteShader( vertexShader );
-	glDeleteShader( fragmentShader );
-}
 
-void compileShader( unsigned int shader, std::vector<char> &shaderSource ) noexcept( false )
-{
-	int success;
-	
-	const char* data = shaderSource.data();
-	glShaderSource( shader, 1, &data, NULL );
-	glCompileShader( shader );
-	glGetShaderiv( shader, GL_COMPILE_STATUS, &success );
-	if ( !success )
-		throw ( shader );
-}
 
-void readShader( const char *fileName, std::vector<char> &lines ) noexcept( false )
-{
-	lines.clear();
 
-	std::ifstream file( fileName );
-	if ( !file.is_open() )
-		throw ( std::string( "SHADER::FILE::Can't open file: " ) + std::string( fileName ) );
-	std::noskipws( file );
-	std::copy( std::istream_iterator<char>( file ), 
-			   std::istream_iterator<char>(),
-			   std::back_inserter( lines ) );
-	if ( !lines.size() )
-		throw ( std::string( "SHADER::FILE::Nothing was readen, file: " ) + std::string( fileName ) );
-	else
-		lines.push_back( '\0' );
-}
-
-void initializeShaders() noexcept( false )
-{
-	std::vector<char> shaderSource; //dont forget to manually clean memory allocated inside
-	unsigned int vertexShader = glCreateShader( GL_VERTEX_SHADER );
-	unsigned int fragmentShader = glCreateShader( GL_FRAGMENT_SHADER );
-	int success;
-	char infoLog[BUFFER_SIZE];
-
-	try {
-		std::cout << SHADER_VERTEX_FILEPATH << " INITIALIZATION!\n";
-		readShader( SHADER_VERTEX_FILEPATH, shaderSource );
-		compileShader( vertexShader, shaderSource );
-		std::cout << "SHADER::COMPILE::Success!\n";
-		std::cout << SHADER_FRAGMENT_FILEPATH << " INITIALIZATION!\n";
-		readShader( SHADER_FRAGMENT_FILEPATH, shaderSource );
-		compileShader( fragmentShader, shaderSource );
-		std::cout << "SHADER::COMPILE::Success!\n";
-
-	}
-	catch ( unsigned int &shader ) {
-		glGetShaderInfoLog( shader, BUFFER_SIZE, NULL, infoLog );
-		cleanShadersInitialize( vertexShader, fragmentShader );
-		throw( std::runtime_error( std::string( "SHADER::COMPILE::Failed!\n" ) 
-									+ std::string( infoLog ) ) );
-	}
-	catch ( std::string &description ) { 
-		cleanShadersInitialize( vertexShader, fragmentShader );
-		throw( std::runtime_error( description ) );
-	}
-
-	//create shader programm
-	unsigned int shaderProgram;
-	shaderProgram = glCreateProgram();
-	glAttachShader( shaderProgram, vertexShader );
-	glAttachShader( shaderProgram, fragmentShader );
-	glLinkProgram( shaderProgram );
-	glGetProgramiv( shaderProgram, GL_LINK_STATUS, &success );
-	if ( !success ) {
-		glGetProgramInfoLog( shaderProgram, BUFFER_SIZE, NULL, infoLog );
-		cleanShadersInitialize( vertexShader, fragmentShader );
-		throw( std::runtime_error( std::string( "SHADER::PROGRAMM::Link failed!\n" ) 
-									+ std::string( infoLog ) ) );
-	}
-	glUseProgram( shaderProgram );
-	cleanShadersInitialize( vertexShader, fragmentShader );
-}
 
 
