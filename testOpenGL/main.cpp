@@ -4,27 +4,28 @@
 #include <iostream>
 #include <vector>
 #include <array>
-#include <fstream>
 #include <string>
+
+#include "shader.h"
 
 const char* SHADER_VERTEX_FILEPATH = "./shaders/vert.vert";
 const char* SHADER_FRAGMENT_FILEPATH = "./shaders/frag.frag";
-const unsigned int BUFFER_SIZE = 512;
 
 void framebuffer_size_callback( GLFWwindow* window, int width, int height );
 void processInput( GLFWwindow* window );
 
 void initializeWindow(GLFWwindow** pWindow) noexcept(false);
 void setUpWindow( GLFWwindow* window ) noexcept;
-void initializeShaders() noexcept(false);
+
 
 int main() 
 {
-	GLFWwindow* window = nullptr;	
+	GLFWwindow* window = nullptr;
+	std::unique_ptr<Shader> defaultShader;
 
 	try {
 		initializeWindow( &window );
-		initializeShaders();
+		defaultShader.reset( new Shader( SHADER_VERTEX_FILEPATH, SHADER_FRAGMENT_FILEPATH ) );
 	}
 	catch ( std::exception& e ) {
 		std::cerr << e.what() << std::endl;
@@ -36,15 +37,14 @@ int main()
 	setUpWindow( window );
 
 	//hardcoded triangles
-	std::array<float, 12> vertices = {
-	 0.5f,  0.5f, 0.0f,  // top right
-	 0.5f, -0.5f, 0.0f,  // bottom right
-	-0.5f, -0.5f, 0.0f,  // bottom left
-	-0.5f,  0.5f, 0.0f   // top left 
+	std::array<float, 18> vertices = {
+			// positions         // colors
+		0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,   // bottom right
+	   -0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,   // bottom left
+		0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f    // top
 	};
 	std::array<unsigned int, 6> indices = {  // note that we start from 0!
-		0, 1, 3,   // first triangle
-		1, 2, 3    // second triangle
+		0, 1, 2
 	};
 	
 	unsigned int VBO;
@@ -61,17 +61,27 @@ int main()
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, EBO );
 	glBufferData( GL_ELEMENT_ARRAY_BUFFER, sizeof( indices ), indices.data(), GL_STATIC_DRAW );
 	//set vertex atributes pointers
-	glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof( float ), ( void* )0 );
+	glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof( float ), ( void* )0 );
 	glEnableVertexAttribArray( 0 );
+	glVertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof( float ), ( void* )( 3 * sizeof( float ) ) );
+	glEnableVertexAttribArray( 1 );
 
 	//main loop
 	while ( !glfwWindowShouldClose( window ) ) {
 		//input
 		processInput( window );
 		
+		float timeValue = glfwGetTime();
+		float redValue = ( sin( timeValue ) / 2.0f ) + 0.5f;
+		float greenValue = ( sin( timeValue/2.f ) / 2.0f ) + 0.5f;
+		float blueValue = ( sin( timeValue /4.f ) / 2.0f ) + 0.5f;
+		int vertexColorLocation = glGetUniformLocation(defaultShader->getID(), "maskColor");
+		glUniform3f(vertexColorLocation, redValue, greenValue, blueValue);
+		
 		//rendering commands
 		glClear( GL_COLOR_BUFFER_BIT );
 		glBindVertexArray( VAO );
+		defaultShader->use();
 		glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0 );
 
 		//check and call events and swap the buffers
@@ -121,86 +131,8 @@ void setUpWindow( GLFWwindow* window ) noexcept
 }
 
 
-void cleanShadersInitialize( unsigned int vertexShader, unsigned int fragmentShader)
-{
-	glDeleteShader( vertexShader );
-	glDeleteShader( fragmentShader );
-}
 
-void compileShader( unsigned int shader, std::vector<char> &shaderSource ) noexcept( false )
-{
-	int success;
-	
-	const char* data = shaderSource.data();
-	glShaderSource( shader, 1, &data, NULL );
-	glCompileShader( shader );
-	glGetShaderiv( shader, GL_COMPILE_STATUS, &success );
-	if ( !success )
-		throw ( shader );
-}
 
-void readShader( const char *fileName, std::vector<char> &lines ) noexcept( false )
-{
-	lines.clear();
 
-	std::ifstream file( fileName );
-	if ( !file.is_open() )
-		throw ( std::string( "SHADER::FILE::Can't open file: " ) + std::string( fileName ) );
-	std::noskipws( file );
-	std::copy( std::istream_iterator<char>( file ), 
-			   std::istream_iterator<char>(),
-			   std::back_inserter( lines ) );
-	if ( !lines.size() )
-		throw ( std::string( "SHADER::FILE::Nothing was readen, file: " ) + std::string( fileName ) );
-	else
-		lines.push_back( '\0' );
-}
-
-void initializeShaders() noexcept( false )
-{
-	std::vector<char> shaderSource; //dont forget to manually clean memory allocated inside
-	unsigned int vertexShader = glCreateShader( GL_VERTEX_SHADER );
-	unsigned int fragmentShader = glCreateShader( GL_FRAGMENT_SHADER );
-	int success;
-	char infoLog[BUFFER_SIZE];
-
-	try {
-		std::cout << SHADER_VERTEX_FILEPATH << " INITIALIZATION!\n";
-		readShader( SHADER_VERTEX_FILEPATH, shaderSource );
-		compileShader( vertexShader, shaderSource );
-		std::cout << "SHADER::COMPILE::Success!\n";
-		std::cout << SHADER_FRAGMENT_FILEPATH << " INITIALIZATION!\n";
-		readShader( SHADER_FRAGMENT_FILEPATH, shaderSource );
-		compileShader( fragmentShader, shaderSource );
-		std::cout << "SHADER::COMPILE::Success!\n";
-
-	}
-	catch ( unsigned int &shader ) {
-		glGetShaderInfoLog( shader, BUFFER_SIZE, NULL, infoLog );
-		cleanShadersInitialize( vertexShader, fragmentShader );
-		throw( std::runtime_error( std::string( "SHADER::COMPILE::Failed!\n" ) 
-									+ std::string( infoLog ) ) );
-	}
-	catch ( std::string &description ) { 
-		cleanShadersInitialize( vertexShader, fragmentShader );
-		throw( std::runtime_error( description ) );
-	}
-
-	//create shader programm
-	unsigned int shaderProgram;
-	shaderProgram = glCreateProgram();
-	glAttachShader( shaderProgram, vertexShader );
-	glAttachShader( shaderProgram, fragmentShader );
-	glLinkProgram( shaderProgram );
-	glGetProgramiv( shaderProgram, GL_LINK_STATUS, &success );
-	if ( !success ) {
-		glGetProgramInfoLog( shaderProgram, BUFFER_SIZE, NULL, infoLog );
-		cleanShadersInitialize( vertexShader, fragmentShader );
-		throw( std::runtime_error( std::string( "SHADER::PROGRAMM::Link failed!\n" ) 
-									+ std::string( infoLog ) ) );
-	}
-	glUseProgram( shaderProgram );
-	cleanShadersInitialize( vertexShader, fragmentShader );
-}
 
 
