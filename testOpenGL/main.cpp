@@ -1,5 +1,7 @@
 #include <glad\glad.h>
 #include <GLFW\glfw3.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
 
 #include <iostream>
 #include <vector>
@@ -10,11 +12,13 @@
 
 const char* SHADER_VERTEX_FILEPATH = "./shaders/vert.vert";
 const char* SHADER_FRAGMENT_FILEPATH = "./shaders/frag.frag";
+const std::string WOODEN_CONTAINER_FILEPATH( "./resources/textures/container.jpg" );
 
 void framebuffer_size_callback( GLFWwindow* window, int width, int height );
 void processInput( GLFWwindow* window );
 
 void initializeWindow(GLFWwindow** pWindow) noexcept(false);
+void initializeTexture();
 void setUpWindow( GLFWwindow* window ) noexcept;
 
 
@@ -35,16 +39,19 @@ int main()
 	}
 
 	setUpWindow( window );
+	initializeTexture();
 
 	//hardcoded triangles
-	std::array<float, 18> vertices = {
-			// positions         // colors
-		0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,   // bottom right
-	   -0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,   // bottom left
-		0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f    // top
+	std::array vertices {
+		// positions          // colors           // texture coords
+		 0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f,   // top right
+		 0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f,   // bottom right
+		-0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   // bottom left
+		-0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 1.0f,   0.0f, 1.0f    // top left
 	};
-	std::array<unsigned int, 6> indices = {  // note that we start from 0!
-		0, 1, 2
+	std::array indices {  // note that we start from 0!
+		0, 1, 2,
+		0, 2, 3
 	};
 	
 	unsigned int VBO;
@@ -61,11 +68,14 @@ int main()
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, EBO );
 	glBufferData( GL_ELEMENT_ARRAY_BUFFER, sizeof( indices ), indices.data(), GL_STATIC_DRAW );
 	//set vertex atributes pointers
-	glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof( float ), ( void* )0 );
+	glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof( float ), ( void* )0 );
 	glEnableVertexAttribArray( 0 );
-	glVertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof( float ), ( void* )( 3 * sizeof( float ) ) );
+	glVertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof( float ), ( void* )( 3 * sizeof( float ) ) );
 	glEnableVertexAttribArray( 1 );
+	glVertexAttribPointer( 2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof( float ), ( void* )( 6 * sizeof( float ) ) );
+	glEnableVertexAttribArray( 2 );
 
+	float prevUpdate = glfwGetTime();
 	//main loop
 	while ( !glfwWindowShouldClose( window ) ) {
 		//input
@@ -128,6 +138,31 @@ void setUpWindow( GLFWwindow* window ) noexcept
 {
 	glfwSetFramebufferSizeCallback( window, framebuffer_size_callback );
 	glClearColor( 0.5f, 0.5f, 0.5f, 1.f );
+}
+
+void initializeTexture()
+{
+	unsigned int texture;
+	glGenTextures( 1, &texture );
+	glBindTexture( GL_TEXTURE_2D, texture );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+
+	int width, height, nrChannels;
+	unsigned char* data = stbi_load( WOODEN_CONTAINER_FILEPATH.c_str(), &width, &height,
+									 &nrChannels, 0 );
+	if ( !data ) {
+		std::cerr << "INIT::TEXTURE::Undable to load texture from file: " << WOODEN_CONTAINER_FILEPATH << std::endl;
+		data = new unsigned char[3];
+		std::fill_n( data, 3, 255 );
+		width = height = 1;
+	}
+
+	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data );
+	glGenerateMipmap( GL_TEXTURE_2D );
+	//TODO clean memory
 }
 
 
