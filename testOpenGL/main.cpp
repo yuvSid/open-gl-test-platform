@@ -12,24 +12,31 @@
 
 const char* SHADER_VERTEX_FILEPATH = "./shaders/vert.vert";
 const char* SHADER_FRAGMENT_FILEPATH = "./shaders/frag.frag";
-const std::string WOODEN_CONTAINER_FILEPATH( "./resources/textures/container.jpg" );
+const std::vector<std::string> TEXTURES_FILENAMES{
+	"./resources/textures/container.jpg",
+	"./resources/textures/awesomeface.png"
+};
 
 void framebuffer_size_callback( GLFWwindow* window, int width, int height );
 void processInput( GLFWwindow* window );
 
-void initializeWindow(GLFWwindow** pWindow) noexcept(false);
-void initializeTexture();
+void initializeWindow( GLFWwindow** pWindow ) noexcept( false );
+void initializeTextures( std::vector<unsigned int> &textures ) noexcept( false );
 void setUpWindow( GLFWwindow* window ) noexcept;
+
+void bindTextures( std::vector<unsigned int>& textures ) noexcept;
 
 
 int main() 
 {
 	GLFWwindow* window = nullptr;
 	std::unique_ptr<Shader> defaultShader;
+	std::vector<unsigned int> textures;
 
 	try {
 		initializeWindow( &window );
 		defaultShader.reset( new Shader( SHADER_VERTEX_FILEPATH, SHADER_FRAGMENT_FILEPATH ) );
+		initializeTextures( textures );
 	}
 	catch ( std::exception& e ) {
 		std::cerr << e.what() << std::endl;
@@ -39,7 +46,6 @@ int main()
 	}
 
 	setUpWindow( window );
-	initializeTexture();
 
 	//hardcoded triangles
 	std::array vertices {
@@ -75,6 +81,8 @@ int main()
 	glVertexAttribPointer( 2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof( float ), ( void* )( 6 * sizeof( float ) ) );
 	glEnableVertexAttribArray( 2 );
 
+	bindTextures( textures );
+
 	float prevUpdate = glfwGetTime();
 	//main loop
 	while ( !glfwWindowShouldClose( window ) ) {
@@ -92,6 +100,8 @@ int main()
 		glClear( GL_COLOR_BUFFER_BIT );
 		glBindVertexArray( VAO );
 		defaultShader->use();
+		glUniform1i( glGetUniformLocation( defaultShader->getID(), "texture1" ), 0 );
+		glUniform1i( glGetUniformLocation( defaultShader->getID(), "texture2" ), 1 );
 		glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0 );
 
 		//check and call events and swap the buffers
@@ -140,29 +150,67 @@ void setUpWindow( GLFWwindow* window ) noexcept
 	glClearColor( 0.5f, 0.5f, 0.5f, 1.f );
 }
 
-void initializeTexture()
+void processEmptyLoadedTextureData( unsigned char* data )
 {
-	unsigned int texture;
-	glGenTextures( 1, &texture );
-	glBindTexture( GL_TEXTURE_2D, texture );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+	data = new unsigned char[3];
+	std::fill_n( data, 3, 255 );
+	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, 1, 1, 0, GL_RGB, GL_UNSIGNED_BYTE, data );
+	delete[] data;
+	data = nullptr;
+}
+
+void processCorrectlyLoadedTexureData( const std::string& loadedFileName,
+									   int& width, int& height, unsigned char* data )
+{
+	if ( loadedFileName == TEXTURES_FILENAMES[0] )
+		glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data );
+	else if ( loadedFileName == TEXTURES_FILENAMES[1] )
+		glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data );
+	else
+		throw( std::runtime_error( "INIT::TEXTURE::Failes to recognize how to load texture into openGL!" ) );
+}
+
+void initializeTextures( std::vector<unsigned int>& textures ) noexcept( false )
+{
+	const unsigned short textures_count = TEXTURES_FILENAMES.size();
+
+	textures.clear();
+	textures.resize( textures_count );
+	glGenTextures( textures_count, textures.data() );
 
 	int width, height, nrChannels;
-	unsigned char* data = stbi_load( WOODEN_CONTAINER_FILEPATH.c_str(), &width, &height,
-									 &nrChannels, 0 );
-	if ( !data ) {
-		std::cerr << "INIT::TEXTURE::Undable to load texture from file: " << WOODEN_CONTAINER_FILEPATH << std::endl;
-		data = new unsigned char[3];
-		std::fill_n( data, 3, 255 );
-		width = height = 1;
-	}
+	unsigned char* data;
+	stbi_set_flip_vertically_on_load( true );
+	for ( size_t i = 0; i < textures_count; i++ ) {
+		glBindTexture( GL_TEXTURE_2D, textures[i] );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+		glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
 
-	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data );
-	glGenerateMipmap( GL_TEXTURE_2D );
-	//TODO clean memory
+		data = nullptr;
+		try {
+			data = stbi_load( TEXTURES_FILENAMES[i].c_str(),
+							  &width, &height, &nrChannels, 0 );
+			if ( !data )
+				throw ( TEXTURES_FILENAMES[i] );
+			processCorrectlyLoadedTexureData( TEXTURES_FILENAMES[i], width, height, data );
+			glGenerateMipmap( GL_TEXTURE_2D );
+			stbi_image_free( data );
+		}
+		catch ( const std::string& fileName ) {
+			std::cerr << "INIT::TEXTURE::Undable to load texture from file: " << fileName << std::endl;
+			processEmptyLoadedTextureData( data );
+		}
+	}	
+}
+
+void bindTextures( std::vector<unsigned int>& textures ) noexcept
+{
+	for ( size_t i = 0; i < textures.size(); i++ ) {
+		glActiveTexture( GL_TEXTURE0 + i );
+		glBindTexture( GL_TEXTURE_2D, textures[i] );
+	}
 }
 
 

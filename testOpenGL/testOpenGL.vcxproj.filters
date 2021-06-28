@@ -43,5 +43,8 @@
     <ClInclude Include="shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\LIBRARYES\stb\stb_image.h">
+      <Filter>Libraries</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
