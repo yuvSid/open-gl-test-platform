@@ -2,6 +2,9 @@
 #include <GLFW\glfw3.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
+#include <glm\glm.hpp>
+#include <glm\gtc\matrix_transform.hpp>
+#include <glm\gtc\type_ptr.hpp>
 
 #include <iostream>
 #include <vector>
@@ -21,13 +24,13 @@ void framebuffer_size_callback( GLFWwindow* window, int width, int height );
 void processInput( GLFWwindow* window );
 
 void initializeWindow( GLFWwindow** pWindow ) noexcept( false );
-void initializeTextures( std::vector<unsigned int> &textures ) noexcept( false );
+void initializeTextures( std::vector<unsigned int>& textures ) noexcept( false );
 void setUpWindow( GLFWwindow* window ) noexcept;
 
 void bindTextures( std::vector<unsigned int>& textures ) noexcept;
 
 
-int main() 
+int main()
 {
 	GLFWwindow* window = nullptr;
 	std::unique_ptr<Shader> defaultShader;
@@ -48,18 +51,18 @@ int main()
 	setUpWindow( window );
 
 	//hardcoded triangles
-	std::array vertices {
+	std::array vertices{
 		// positions          // colors           // texture coords
 		 0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f,   // top right
 		 0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f,   // bottom right
 		-0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   // bottom left
 		-0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 1.0f,   0.0f, 1.0f    // top left
 	};
-	std::array indices {  // note that we start from 0!
+	std::array indices{  // note that we start from 0!
 		0, 1, 2,
 		0, 2, 3
 	};
-	
+
 	unsigned int VBO;
 	unsigned int VAO;
 	unsigned int EBO;
@@ -82,31 +85,47 @@ int main()
 	glEnableVertexAttribArray( 2 );
 
 	bindTextures( textures );
+	defaultShader->use();
+	glUniform1i( glGetUniformLocation( defaultShader->getID(), "texture1" ), 0 );
+	glUniform1i( glGetUniformLocation( defaultShader->getID(), "texture2" ), 1 );
+
+	int vertexColorLocation = glGetUniformLocation( defaultShader->getID(), "maskColor" );
+	int transformMatLocation = glGetUniformLocation( defaultShader->getID(), "transform" );
+
 
 	float prevUpdate = glfwGetTime();
 	//main loop
 	while ( !glfwWindowShouldClose( window ) ) {
 		//input
 		processInput( window );
-		
+
 		float timeValue = glfwGetTime();
 		float redValue = ( sin( timeValue ) / 2.0f ) + 0.5f;
-		float greenValue = ( sin( timeValue/2.f ) / 2.0f ) + 0.5f;
-		float blueValue = ( sin( timeValue /4.f ) / 2.0f ) + 0.5f;
-		int vertexColorLocation = glGetUniformLocation(defaultShader->getID(), "maskColor");
-		glUniform3f(vertexColorLocation, redValue, greenValue, blueValue);
-		
+		float greenValue = ( sin( timeValue / 2.f ) / 2.0f ) + 0.5f;
+		float blueValue = ( sin( timeValue / 4.f ) / 2.0f ) + 0.5f;
+		glUniform3f( vertexColorLocation, redValue, greenValue, blueValue );
+
+		glm::mat4 trans = glm::mat4( 1.f );
+		trans = glm::scale( trans, glm::vec3( 0.5f ) );
+		trans = glm::translate( trans, glm::vec3( sin( timeValue ), cos( timeValue ), 0.f ) );
+		trans = glm::rotate( trans, timeValue, glm::vec3( 0.f, 0.f, 1.f ) );
+
 		//rendering commands
 		glClear( GL_COLOR_BUFFER_BIT );
 		glBindVertexArray( VAO );
-		defaultShader->use();
-		glUniform1i( glGetUniformLocation( defaultShader->getID(), "texture1" ), 0 );
-		glUniform1i( glGetUniformLocation( defaultShader->getID(), "texture2" ), 1 );
-		glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0 );
+		glUniformMatrix4fv( transformMatLocation, 1, GL_FALSE, glm::value_ptr( trans ) );
+		glDrawElements( GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0 );
+
+		trans = glm::mat4( 1.f );
+		trans = glm::scale( trans, glm::vec3( 0.5f ) );
+		trans = glm::translate( trans, glm::vec3( -sin( timeValue ), -cos( timeValue ), 0.f ) );
+		trans = glm::rotate( trans, 2 * timeValue, glm::vec3( 0.f, 0.f, -1.f ) );
+		glUniformMatrix4fv( transformMatLocation, 1, GL_FALSE, glm::value_ptr( trans ) );
+		glDrawElements( GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0 );
 
 		//check and call events and swap the buffers
 		glfwPollEvents();
-		glfwSwapBuffers( window );		
+		glfwSwapBuffers( window );
 	}
 
 	glfwTerminate();
@@ -135,7 +154,7 @@ void initializeWindow( GLFWwindow** pWindow ) noexcept( false )
 	//create window
 	*pWindow = glfwCreateWindow( 800, 600, "OpenGL TESTS", NULL, NULL );
 	if ( !*pWindow )
-		throw ( std::runtime_error( std::string( "INIT::GLFW::Falied to create GLFW window!") ) );
+		throw ( std::runtime_error( std::string( "INIT::GLFW::Falied to create GLFW window!" ) ) );
 	glfwMakeContextCurrent( *pWindow );
 
 	//initialize GLAD
@@ -202,7 +221,7 @@ void initializeTextures( std::vector<unsigned int>& textures ) noexcept( false )
 			std::cerr << "INIT::TEXTURE::Undable to load texture from file: " << fileName << std::endl;
 			processEmptyLoadedTextureData( data );
 		}
-	}	
+	}
 }
 
 void bindTextures( std::vector<unsigned int>& textures ) noexcept
