@@ -10,8 +10,11 @@
 #include <vector>
 #include <array>
 #include <string>
+#include <thread>
+#include <chrono>
 
 #include "shader.h"
+#include "camera.h"
 
 const char* SHADER_VERTEX_FILEPATH = "./shaders/vert.vert";
 const char* SHADER_FRAGMENT_FILEPATH = "./shaders/frag.frag";
@@ -21,7 +24,9 @@ const std::vector<std::string> TEXTURES_FILENAMES{
 };
 
 void framebuffer_size_callback( GLFWwindow* window, int width, int height );
-void processInput( GLFWwindow* window );
+void scroll_callback( GLFWwindow* window, double xoffset, double yoffset );
+void mouse_callback( GLFWwindow* window, double xpos, double ypos );
+void processInput( GLFWwindow* window, Camera& camera );
 
 void initializeWindow( GLFWwindow** pWindow ) noexcept( false );
 void initializeTextures( std::vector<unsigned int>& textures ) noexcept( false );
@@ -29,12 +34,19 @@ void setUpWindow( GLFWwindow* window ) noexcept;
 
 void bindTextures( std::vector<unsigned int>& textures ) noexcept;
 
+float deltaTime = 0.0f;	// Time between current frame and last frame
+float lastFrame = 0.0f; // Time of last frame
+const short FPS = 30;
+
+Camera* G_pCamera = nullptr;
 
 int main()
 {
 	GLFWwindow* window = nullptr;
 	std::unique_ptr<Shader> defaultShader;
 	std::vector<unsigned int> textures;
+	Camera defalutCamera;
+	G_pCamera = &defalutCamera;
 
 	try {
 		initializeWindow( &window );
@@ -95,7 +107,6 @@ int main()
 		-0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
 		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f
 	};
-
 	std::array positions{
 		glm::vec3( 0.0f,  0.0f,  0.0f ),
 		glm::vec3( 2.0f,  5.0f, -15.0f ),
@@ -133,8 +144,10 @@ int main()
 
 	//main loop
 	while ( !glfwWindowShouldClose( window ) ) {
+		double frameStart = glfwGetTime();
+
 		//input
-		processInput( window );
+		processInput( window, defalutCamera );
 
 		//rendering commands
 		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
@@ -145,8 +158,9 @@ int main()
 			model = glm::rotate( model,
 								 glm::length( eachPossition ) * ( float )glfwGetTime() * glm::radians( 50.f ),
 								 glm::vec3( 0.5f, 1.f, 0.f ) );
-			glm::mat4 view = glm::translate( glm::mat4( 1.f ), glm::vec3( 0.f, 0.f, -3.f ) );
-			glm::mat4 projection = glm::perspective( glm::radians( 45.f ), 800.f / 600.f, 0.1f, 100.f );
+			glm::mat4 view = G_pCamera->getViewMatrix();
+
+			glm::mat4 projection = glm::perspective( G_pCamera->getFov(), 800.f / 600.f, 0.1f, 100.f );
 			trans = projection * view * model;
 
 			glUniformMatrix4fv( transformMatLocation, 1, GL_FALSE, glm::value_ptr( trans ) );
@@ -156,6 +170,12 @@ int main()
 		//check and call events and swap the buffers
 		glfwPollEvents();
 		glfwSwapBuffers( window );
+
+		deltaTime = glfwGetTime() - frameStart;
+		double updateTimeSec = 1. / ( float )FPS;
+
+		if ( deltaTime < updateTimeSec )
+			std::this_thread::sleep_for( std::chrono::milliseconds( ( ( int )( ( updateTimeSec - deltaTime ) * 1000. ) ) ) );
 	}
 
 	glfwTerminate();
@@ -167,10 +187,27 @@ void framebuffer_size_callback( GLFWwindow* window, int width, int height )
 	glViewport( 0, 0, width, height );
 }
 
-void processInput( GLFWwindow* window )
+void scroll_callback( GLFWwindow* window, double xoffset, double yoffset )
+{
+	G_pCamera->ProcessMouseScroll( yoffset );
+}
+void mouse_callback( GLFWwindow* window, double xpos, double ypos )
+{
+	G_pCamera->ProcessMouseMovement( xpos, ypos );
+}
+
+void processInput( GLFWwindow* window, Camera& camera )
 {
 	if ( glfwGetKey( window, GLFW_KEY_ESCAPE ) == GLFW_PRESS )
 		glfwSetWindowShouldClose( window, true );
+	if ( glfwGetKey( window, GLFW_KEY_W ) == GLFW_PRESS )
+		camera.ProcessKeyboard( Camera::Camera_Movement::FORWARD, FPS );
+	if ( glfwGetKey( window, GLFW_KEY_S ) == GLFW_PRESS )
+		camera.ProcessKeyboard( Camera::Camera_Movement::BACKWARD, FPS );
+	if ( glfwGetKey( window, GLFW_KEY_A ) == GLFW_PRESS )
+		camera.ProcessKeyboard( Camera::Camera_Movement::LEFT, FPS );
+	if ( glfwGetKey( window, GLFW_KEY_D ) == GLFW_PRESS )
+		camera.ProcessKeyboard( Camera::Camera_Movement::RIGHT, FPS );
 }
 
 void initializeWindow( GLFWwindow** pWindow ) noexcept( false )
@@ -197,6 +234,10 @@ void setUpWindow( GLFWwindow* window ) noexcept
 {
 	glfwSetFramebufferSizeCallback( window, framebuffer_size_callback );
 	glClearColor( 0.5f, 0.5f, 0.5f, 1.f );
+
+	glfwSetInputMode( window, GLFW_CURSOR, GLFW_CURSOR_DISABLED );
+	glfwSetCursorPosCallback( window, mouse_callback );
+	glfwSetScrollCallback( window, scroll_callback );
 }
 
 void processEmptyLoadedTextureData( unsigned char* data )

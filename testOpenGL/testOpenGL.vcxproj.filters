@@ -30,6 +30,9 @@
     <ClCompile Include="libs\glad.c">
       <Filter>Libraries</Filter>
     </ClCompile>
+    <ClCompile Include="camera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\frag.frag">
@@ -45,6 +48,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\LIBRARYES\stb\stb_image.h">
       <Filter>Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="camera.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
