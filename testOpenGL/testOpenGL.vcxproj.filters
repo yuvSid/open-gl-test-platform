@@ -35,10 +35,10 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\frag.frag">
+    <None Include="shaders\twoTextures.frag">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="shaders\vert.vert">
+    <None Include="shaders\transferMat.vert">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
@@ -50,6 +50,12 @@
       <Filter>Libraries</Filter>
     </ClInclude>
     <ClInclude Include="camera.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="settings.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="models_description.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

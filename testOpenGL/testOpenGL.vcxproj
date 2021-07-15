@@ -149,12 +149,14 @@
     <ClCompile Include="shader.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\frag.frag" />
-    <None Include="shaders\vert.vert" />
+    <None Include="shaders\twoTextures.frag" />
+    <None Include="shaders\transferMat.vert" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\LIBRARYES\stb\stb_image.h" />
     <ClInclude Include="camera.h" />
+    <ClInclude Include="models_description.h" />
+    <ClInclude Include="settings.h" />
     <ClInclude Include="shader.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

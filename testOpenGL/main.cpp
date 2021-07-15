@@ -7,49 +7,38 @@
 #include <glm\gtc\type_ptr.hpp>
 
 #include <iostream>
-#include <vector>
 #include <array>
-#include <string>
 #include <thread>
 #include <chrono>
 
+#include "settings.h"
+#include "models_description.h"
 #include "shader.h"
 #include "camera.h"
-
-const char* SHADER_VERTEX_FILEPATH = "./shaders/vert.vert";
-const char* SHADER_FRAGMENT_FILEPATH = "./shaders/frag.frag";
-const std::vector<std::string> TEXTURES_FILENAMES{
-	"./resources/textures/container.jpg",
-	"./resources/textures/awesomeface.png"
-};
 
 void framebuffer_size_callback( GLFWwindow* window, int width, int height );
 void scroll_callback( GLFWwindow* window, double xoffset, double yoffset );
 void mouse_callback( GLFWwindow* window, double xpos, double ypos );
-void processInput( GLFWwindow* window, Camera& camera );
 
-void initializeWindow( GLFWwindow** pWindow ) noexcept( false );
-void initializeTextures( std::vector<unsigned int>& textures ) noexcept( false );
-void setUpWindow( GLFWwindow* window ) noexcept;
+void initializeWindow();
+void initializeTextures( std::vector<unsigned int>& textures );
 
+void processInput() noexcept;
+void setUpWindow() noexcept;
 void bindTextures( std::vector<unsigned int>& textures ) noexcept;
 
-float deltaTime = 0.0f;	// Time between current frame and last frame
-float lastFrame = 0.0f; // Time of last frame
-const short FPS = 30;
-
-Camera* G_pCamera = nullptr;
+GLFWwindow* G_pWindow = nullptr;
+std::unique_ptr<Camera> G_pCamera = nullptr;
 
 int main()
 {
-	GLFWwindow* window = nullptr;
 	std::unique_ptr<Shader> defaultShader;
 	std::vector<unsigned int> textures;
-	Camera defalutCamera;
-	G_pCamera = &defalutCamera;
+
+	G_pCamera.reset( new Camera() );
 
 	try {
-		initializeWindow( &window );
+		initializeWindow();
 		defaultShader.reset( new Shader( SHADER_VERTEX_FILEPATH, SHADER_FRAGMENT_FILEPATH ) );
 		initializeTextures( textures );
 	}
@@ -60,69 +49,11 @@ int main()
 		return -1;
 	}
 
-	setUpWindow( window );
+	setUpWindow();
 	glEnable( GL_DEPTH_TEST );
-
-	//hardcoded triangles
-	std::array vertices{
-		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-		 0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-		 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-		 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-
-		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-		 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-		 0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-		 0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-		-0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-
-		-0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-		-0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-		-0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-
-		 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-		 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-		 0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-		 0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-		 0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-		 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-
-		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-		 0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-		 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-		 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-		-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-
-		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-		 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-		 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-		 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-		-0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f
-	};
-	std::array positions{
-		glm::vec3( 0.0f,  0.0f,  0.0f ),
-		glm::vec3( 2.0f,  5.0f, -15.0f ),
-		glm::vec3( -1.5f, -2.2f, -2.5f ),
-		glm::vec3( -3.8f, -2.0f, -12.3f ),
-		glm::vec3( 2.4f, -0.4f, -3.5f ),
-		glm::vec3( -1.7f,  3.0f, -7.5f ),
-		glm::vec3( 1.3f, -2.0f, -2.5f ),
-		glm::vec3( 1.5f,  2.0f, -2.5f ),
-		glm::vec3( 1.5f,  0.2f, -1.5f ),
-		glm::vec3( -1.3f,  1.0f, -1.5f )
-	};
 
 	unsigned int VBO;
 	unsigned int VAO;
-	unsigned int EBO;
 	glGenVertexArrays( 1, &VAO );
 	glBindVertexArray( VAO );
 	//set vertexes and copy to VRAM
@@ -143,11 +74,11 @@ int main()
 	int transformMatLocation = glGetUniformLocation( defaultShader->getID(), "transform" );
 
 	//main loop
-	while ( !glfwWindowShouldClose( window ) ) {
+	while ( !glfwWindowShouldClose( G_pWindow ) ) {
 		double frameStart = glfwGetTime();
 
 		//input
-		processInput( window, defalutCamera );
+		processInput();
 
 		//rendering commands
 		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
@@ -169,9 +100,9 @@ int main()
 
 		//check and call events and swap the buffers
 		glfwPollEvents();
-		glfwSwapBuffers( window );
+		glfwSwapBuffers( G_pWindow );
 
-		deltaTime = glfwGetTime() - frameStart;
+		double deltaTime = glfwGetTime() - frameStart;
 		double updateTimeSec = 1. / ( float )FPS;
 
 		if ( deltaTime < updateTimeSec )
@@ -196,21 +127,21 @@ void mouse_callback( GLFWwindow* window, double xpos, double ypos )
 	G_pCamera->ProcessMouseMovement( xpos, ypos );
 }
 
-void processInput( GLFWwindow* window, Camera& camera )
+void processInput() noexcept
 {
-	if ( glfwGetKey( window, GLFW_KEY_ESCAPE ) == GLFW_PRESS )
-		glfwSetWindowShouldClose( window, true );
-	if ( glfwGetKey( window, GLFW_KEY_W ) == GLFW_PRESS )
-		camera.ProcessKeyboard( Camera::Camera_Movement::FORWARD, FPS );
-	if ( glfwGetKey( window, GLFW_KEY_S ) == GLFW_PRESS )
-		camera.ProcessKeyboard( Camera::Camera_Movement::BACKWARD, FPS );
-	if ( glfwGetKey( window, GLFW_KEY_A ) == GLFW_PRESS )
-		camera.ProcessKeyboard( Camera::Camera_Movement::LEFT, FPS );
-	if ( glfwGetKey( window, GLFW_KEY_D ) == GLFW_PRESS )
-		camera.ProcessKeyboard( Camera::Camera_Movement::RIGHT, FPS );
+	if ( glfwGetKey( G_pWindow, GLFW_KEY_ESCAPE ) == GLFW_PRESS )
+		glfwSetWindowShouldClose( G_pWindow, true );
+	if ( glfwGetKey( G_pWindow, GLFW_KEY_W ) == GLFW_PRESS )
+		G_pCamera->ProcessKeyboard( Camera::Camera_Movement::FORWARD, FPS );
+	if ( glfwGetKey( G_pWindow, GLFW_KEY_S ) == GLFW_PRESS )
+		G_pCamera->ProcessKeyboard( Camera::Camera_Movement::BACKWARD, FPS );
+	if ( glfwGetKey( G_pWindow, GLFW_KEY_A ) == GLFW_PRESS )
+		G_pCamera->ProcessKeyboard( Camera::Camera_Movement::LEFT, FPS );
+	if ( glfwGetKey( G_pWindow, GLFW_KEY_D ) == GLFW_PRESS )
+		G_pCamera->ProcessKeyboard( Camera::Camera_Movement::RIGHT, FPS );
 }
 
-void initializeWindow( GLFWwindow** pWindow ) noexcept( false )
+void initializeWindow()
 {
 	//initialize and set GLFW	
 	glfwInit();
@@ -219,10 +150,10 @@ void initializeWindow( GLFWwindow** pWindow ) noexcept( false )
 	glfwWindowHint( GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE );
 
 	//create window
-	*pWindow = glfwCreateWindow( 800, 600, "OpenGL TESTS", NULL, NULL );
-	if ( !*pWindow )
+	G_pWindow = glfwCreateWindow( 800, 600, "OpenGL TESTS", NULL, NULL );
+	if ( !G_pWindow )
 		throw ( std::runtime_error( std::string( "INIT::GLFW::Falied to create GLFW window!" ) ) );
-	glfwMakeContextCurrent( *pWindow );
+	glfwMakeContextCurrent( G_pWindow );
 
 	//initialize GLAD
 	if ( !gladLoadGLLoader( ( GLADloadproc )glfwGetProcAddress ) )
@@ -230,14 +161,14 @@ void initializeWindow( GLFWwindow** pWindow ) noexcept( false )
 
 }
 
-void setUpWindow( GLFWwindow* window ) noexcept
+void setUpWindow() noexcept
 {
-	glfwSetFramebufferSizeCallback( window, framebuffer_size_callback );
+	glfwSetFramebufferSizeCallback( G_pWindow, framebuffer_size_callback );
 	glClearColor( 0.5f, 0.5f, 0.5f, 1.f );
 
-	glfwSetInputMode( window, GLFW_CURSOR, GLFW_CURSOR_DISABLED );
-	glfwSetCursorPosCallback( window, mouse_callback );
-	glfwSetScrollCallback( window, scroll_callback );
+	glfwSetInputMode( G_pWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED );
+	glfwSetCursorPosCallback( G_pWindow, mouse_callback );
+	glfwSetScrollCallback( G_pWindow, scroll_callback );
 }
 
 void processEmptyLoadedTextureData( unsigned char* data )
@@ -260,7 +191,7 @@ void processCorrectlyLoadedTexureData( const std::string& loadedFileName,
 		throw( std::runtime_error( "INIT::TEXTURE::Failes to recognize how to load texture into openGL!" ) );
 }
 
-void initializeTextures( std::vector<unsigned int>& textures ) noexcept( false )
+void initializeTextures( std::vector<unsigned int>& textures )
 {
 	const unsigned short textures_count = TEXTURES_FILENAMES.size();
 

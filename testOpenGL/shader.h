@@ -12,7 +12,8 @@ const unsigned int BUFFER_SIZE = 512;
 class Shader
 {
 public:
-	Shader( const char* vertexPath, const char* fragmentPath );
+	Shader( const std::string& vertexPath,
+			const std::string& fragmentPath );
 	~Shader();
 
 	void use();
@@ -24,12 +25,12 @@ public:
 	unsigned int getID() { return ID; }
 
 protected:
-	void initializeShaders( const char* vertexShader, 
-							const char* fragmentShader ) noexcept( false );
+	void initializeShaders( const std::string& vertexPath,
+							const std::string& fragmentPath );
+	void compileShader( unsigned int shader, std::vector<char>& shaderSource );
+	void readShader( const std::string& fileName, std::vector<char>& lines );
 
-	void cleanShadersInitialize( unsigned int vertexShader, unsigned int fragmentShader );
-	void compileShader( unsigned int shader, std::vector<char>& shaderSource ) noexcept( false );
-	void readShader( const char* fileName, std::vector<char>& lines ) noexcept( false );
+	void cleanShadersInitialize( unsigned int vertexShader, unsigned int fragmentShader ) noexcept;
 
 private:
 	unsigned int ID;

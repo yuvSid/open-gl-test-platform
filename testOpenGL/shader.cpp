@@ -1,12 +1,12 @@
 #include "shader.h"
 
-void Shader::cleanShadersInitialize( unsigned int vertexShader, unsigned int fragmentShader )
+void Shader::cleanShadersInitialize( unsigned int vertexShader, unsigned int fragmentShader ) noexcept
 {
 	glDeleteShader( vertexShader );
 	glDeleteShader( fragmentShader );
 }
 
-void Shader::compileShader( unsigned int shader, std::vector<char>& shaderSource ) noexcept( false )
+void Shader::compileShader( unsigned int shader, std::vector<char>& shaderSource )
 {
 	int success;
 
@@ -18,7 +18,7 @@ void Shader::compileShader( unsigned int shader, std::vector<char>& shaderSource
 		throw ( shader );
 }
 
-void Shader::readShader( const char* fileName, std::vector<char>& lines ) noexcept( false )
+void Shader::readShader( const std::string& fileName, std::vector<char>& lines )
 {
 	lines.clear();
 
@@ -35,7 +35,7 @@ void Shader::readShader( const char* fileName, std::vector<char>& lines ) noexce
 		lines.push_back( '\0' );
 }
 
-Shader::Shader( const char* vertexPath, const char* fragmentPath )
+Shader::Shader( const std::string& vertexPath, const std::string& fragmentPath )
 {
 	initializeShaders( vertexPath, fragmentPath );
 }
@@ -57,8 +57,8 @@ void Shader::use()
 	glUseProgram( ID );
 }
 
-void Shader::initializeShaders( const char* vertexShaderPath, 
-								const char* fragmentShaderPath ) noexcept( false )
+void Shader::initializeShaders( const std::string& vertexShaderPath,
+								const std::string& fragmentShaderPath )
 {
 	std::vector<char> shaderSource; //dont forget to manually clean memory allocated inside
 	unsigned int vertexShader = glCreateShader( GL_VERTEX_SHADER );
