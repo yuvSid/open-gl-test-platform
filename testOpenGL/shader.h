@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glad\glad.h>
+#include <glm\glm.hpp>
 
 #include <iostream>
 #include <vector>
@@ -18,9 +19,11 @@ public:
 
 	void use();
 
-	void setValue( const std::string& name, bool value );
 	void setValue( const std::string& name, int value );
 	void setValue( const std::string& name, float value );
+	void setValue( const std::string& name, glm::vec3& value );
+	void setValue( const std::string& name, glm::mat4& value, bool isTransformNeeded = GL_FALSE );
+	void setValue( const std::string& name, glm::mat3& value, bool isTransformNeeded = GL_FALSE );
 
 	unsigned int getID() { return ID; }
 

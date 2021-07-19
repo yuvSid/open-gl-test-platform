@@ -149,8 +149,10 @@
     <ClCompile Include="shader.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\twoTextures.frag" />
-    <None Include="shaders\transferMat.vert" />
+    <None Include="shaders\coords_with_transform.vert" />
+    <None Include="shaders\light_caster.frag" />
+    <None Include="shaders\material_texture.frag" />
+    <None Include="shaders\texture_normals.vert" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\LIBRARYES\stb\stb_image.h" />

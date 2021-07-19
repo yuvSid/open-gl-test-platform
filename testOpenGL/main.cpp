@@ -4,7 +4,6 @@
 #include "stb/stb_image.h"
 #include <glm\glm.hpp>
 #include <glm\gtc\matrix_transform.hpp>
-#include <glm\gtc\type_ptr.hpp>
 
 #include <iostream>
 #include <array>
@@ -32,14 +31,16 @@ std::unique_ptr<Camera> G_pCamera = nullptr;
 
 int main()
 {
-	std::unique_ptr<Shader> defaultShader;
+	std::unique_ptr<Shader> texturedBoxesShader;
+	std::unique_ptr<Shader> lightSourceShader;
 	std::vector<unsigned int> textures;
 
 	G_pCamera.reset( new Camera() );
 
 	try {
 		initializeWindow();
-		defaultShader.reset( new Shader( SHADER_VERTEX_FILEPATH, SHADER_FRAGMENT_FILEPATH ) );
+		texturedBoxesShader.reset( new Shader( SHADER_VERTEX_FILEPATH, SHADER_FRAGMENT_FILEPATH ) );
+		lightSourceShader.reset( new Shader( SHADER_VERT_COORDS_TRANSFORM, SHADER_FRAG_ONE_COLOR ) );
 		initializeTextures( textures );
 	}
 	catch ( std::exception& e ) {
@@ -50,28 +51,52 @@ int main()
 	}
 
 	setUpWindow();
-	glEnable( GL_DEPTH_TEST );
 
-	unsigned int VBO;
-	unsigned int VAO;
-	glGenVertexArrays( 1, &VAO );
-	glBindVertexArray( VAO );
+	//setUp cube models
+	unsigned int lightCubeVAO;
+	unsigned int cubeModelWithTextureVAO;
+	unsigned int cubeVBO;
+
+	glGenVertexArrays( 1, &cubeModelWithTextureVAO );
+	glBindVertexArray( cubeModelWithTextureVAO );
 	//set vertexes and copy to VRAM
-	glGenBuffers( 1, &VBO );
-	glBindBuffer( GL_ARRAY_BUFFER, VBO );
-	glBufferData( GL_ARRAY_BUFFER, sizeof( vertices ), vertices.data(), GL_STATIC_DRAW );
+	glGenBuffers( 1, &cubeVBO );
+	glBindBuffer( GL_ARRAY_BUFFER, cubeVBO );
+	glBufferData( GL_ARRAY_BUFFER, sizeof( cubePosNormalsTexture ), cubePosNormalsTexture.data(), GL_STATIC_DRAW );
 	//set vertex atributes pointers
-	glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), ( void* )0 );
+	glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof( float ), ( void* )0 );
 	glEnableVertexAttribArray( 0 );
-	glVertexAttribPointer( 1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof( float ), ( void* )( 3 * sizeof( float ) ) );
+	glVertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof( float ), ( void* )( 3 * sizeof( float ) ) );
 	glEnableVertexAttribArray( 1 );
+	glVertexAttribPointer( 2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof( float ), ( void* )( 6 * sizeof( float ) ) );
+	glEnableVertexAttribArray( 2 );
 
-	bindTextures( textures );
-	defaultShader->use();
-	glUniform1i( glGetUniformLocation( defaultShader->getID(), "texture1" ), 0 );
-	glUniform1i( glGetUniformLocation( defaultShader->getID(), "texture2" ), 1 );
+	glGenVertexArrays( 1, &lightCubeVAO );
+	glBindVertexArray( lightCubeVAO );
+	glBindBuffer( GL_ARRAY_BUFFER, cubeVBO );
+	//set vertex atributes pointers
+	glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof( float ), ( void* )0 );
+	glEnableVertexAttribArray( 0 );
 
-	int transformMatLocation = glGetUniformLocation( defaultShader->getID(), "transform" );
+	//set up light settings
+	glm::vec3 lightPos( 5.f, 5.f, -5.f );
+	glm::vec3 lightColor( 1.f );
+	//light strength settings
+	glm::vec3 lightAmbient = glm::vec3( 0.1f ) * lightColor;
+	glm::vec3 lightDiffuse = glm::vec3( 0.6f ) * lightColor;
+	glm::vec3 lightSpecular = glm::vec3( 1.0f ) * lightColor;
+	lightSourceShader->use();
+	lightSourceShader->setValue( "lightColor", lightColor );
+
+	texturedBoxesShader->use();
+	texturedBoxesShader->setValue( "light.position", lightPos );
+	texturedBoxesShader->setValue( "light.ambient", lightAmbient );
+	texturedBoxesShader->setValue( "light.diffuse", lightDiffuse );
+	texturedBoxesShader->setValue( "light.specular", lightSpecular );
+	//setUp material texture for textures boxes, only one model uses texures so it can e done outside main render loop
+	texturedBoxesShader->setValue( "material.diffuse", 0 );
+	texturedBoxesShader->setValue( "material.specular", 1 );
+	texturedBoxesShader->setValue( "material.shininess", 64.f );
 
 	//main loop
 	while ( !glfwWindowShouldClose( G_pWindow ) ) {
@@ -82,20 +107,37 @@ int main()
 
 		//rendering commands
 		glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-		glBindVertexArray( VAO );
-		for ( auto& eachPossition : positions ) {
+		glm::mat4 view = G_pCamera->getViewMatrix();
+		glm::mat4 projection = glm::perspective( G_pCamera->getFov(), 800.f / 600.f, 0.1f, 100.f );
+
+
+		//lightSource
+		glBindVertexArray( lightCubeVAO );
+		lightSourceShader->use();
+		glm::mat4 transform = projection * view * glm::translate( glm::mat4( 1.f ), lightPos );
+		lightSourceShader->setValue( "transform", transform );
+		glDrawArrays( GL_TRIANGLES, 0, cubePosNormalsTexture.size() );
+
+		//boxes
+		glBindVertexArray( cubeModelWithTextureVAO );
+		texturedBoxesShader->use();
+		bindTextures( textures );
+		glm::vec3 cameraPos = G_pCamera->getPosition();
+		texturedBoxesShader->setValue( "viewPos", cameraPos );
+
+		for ( auto& eachPossition : cubePositions ) {
 			glm::mat4 trans = glm::mat4( 1.0f );
 			glm::mat4 model = glm::translate( glm::mat4( 1.f ), eachPossition );
 			model = glm::rotate( model,
 								 glm::length( eachPossition ) * ( float )glfwGetTime() * glm::radians( 50.f ),
 								 glm::vec3( 0.5f, 1.f, 0.f ) );
-			glm::mat4 view = G_pCamera->getViewMatrix();
-
-			glm::mat4 projection = glm::perspective( G_pCamera->getFov(), 800.f / 600.f, 0.1f, 100.f );
 			trans = projection * view * model;
+			glm::mat3 transNormals = glm::mat3( glm::transpose( glm::inverse( model ) ) );
+			texturedBoxesShader->setValue( "transform", trans );
+			texturedBoxesShader->setValue( "model", model );
+			texturedBoxesShader->setValue( "modelNormal", transNormals );
 
-			glUniformMatrix4fv( transformMatLocation, 1, GL_FALSE, glm::value_ptr( trans ) );
-			glDrawArrays( GL_TRIANGLES, 0, vertices.size() );
+			glDrawArrays( GL_TRIANGLES, 0, cubePosNormalsTexture.size() );
 		}
 
 		//check and call events and swap the buffers
@@ -169,6 +211,8 @@ void setUpWindow() noexcept
 	glfwSetInputMode( G_pWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED );
 	glfwSetCursorPosCallback( G_pWindow, mouse_callback );
 	glfwSetScrollCallback( G_pWindow, scroll_callback );
+
+	glEnable( GL_DEPTH_TEST );
 }
 
 void processEmptyLoadedTextureData( unsigned char* data )
@@ -184,7 +228,7 @@ void processCorrectlyLoadedTexureData( const std::string& loadedFileName,
 									   int& width, int& height, unsigned char* data )
 {
 	if ( loadedFileName == TEXTURES_FILENAMES[0] )
-		glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data );
+		glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data );
 	else if ( loadedFileName == TEXTURES_FILENAMES[1] )
 		glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data );
 	else
@@ -233,6 +277,7 @@ void bindTextures( std::vector<unsigned int>& textures ) noexcept
 		glBindTexture( GL_TEXTURE_2D, textures[i] );
 	}
 }
+
 
 
 

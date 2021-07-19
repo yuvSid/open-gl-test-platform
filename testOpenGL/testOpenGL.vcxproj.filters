@@ -35,10 +35,16 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\twoTextures.frag">
+    <None Include="shaders\material_texture.frag">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="shaders\transferMat.vert">
+    <None Include="shaders\texture_normals.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\coords_with_transform.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shaders\light_caster.frag">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
