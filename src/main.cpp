@@ -1,9 +1,9 @@
-#include <glad\glad.h>
-#include <GLFW\glfw3.h>
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb/stb_image.h"
-#include <glm\glm.hpp>
-#include <glm\gtc\matrix_transform.hpp>
+#include <stb/stb_image.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <iostream>
 #include <array>
