@@ -1,5 +1,6 @@
 #include "shader.h"
 
+#include <iterator>
 #include <glm\gtc\type_ptr.hpp>
 
 void Shader::cleanShadersInitialize( unsigned int vertexShader, unsigned int fragmentShader ) noexcept
