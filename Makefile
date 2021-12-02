@@ -10,14 +10,17 @@ INCLUDE = -IC:\LIBRARYES -I./include
 LIBS = -LC:\LIBRARYES\GLFW -lglfw3
 
 
-LINK_TARGET = First_Window.exe
+LINK_TARGET = bin/openGLTestPlatform.exe
 
-# all : $(LINK_TARGET)
+all : $(LINK_TARGET)
 
-$(LINK_TARGET) : $(OBJS)	
+$(LINK_TARGET) : $(OBJS) $(ODIR)/glad.o 	
 	$(CC) $(LFLAGS) $(LIBS) -o $@ $^
     
 $(ODIR)/%.o : $(SDIR)/%.cpp
 	$(CC) $(INCLUDE) $(CFLAGS) -MMD -c -o $@ $<
+
+$(ODIR)/glad.o : ./lib/glad.c
+	gcc $(INCLUDE) -c $< -o $@
 
 -include $(OBJS:.o=.d)
