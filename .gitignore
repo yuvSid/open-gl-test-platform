@@ -20,6 +20,7 @@ Thumbs.db
 *.log
 [Bb]in
 [Dd]ebug*/
+[Bb]uild*/
 *.lib
 *.sbr
 obj/
@@ -27,5 +28,6 @@ obj/
 _ReSharper*/
 [Tt]est[Rr]esult*
 .vs/
+.vscode/
 #Nuget packages folder
 packages/

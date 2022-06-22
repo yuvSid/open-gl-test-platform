@@ -1,12 +1,15 @@
 #include "shader.h"
 
-void Shader::cleanShadersInitialize( unsigned int vertexShader, unsigned int fragmentShader )
+#include <iterator>
+#include <glm\gtc\type_ptr.hpp>
+
+void Shader::cleanShadersInitialize( unsigned int vertexShader, unsigned int fragmentShader ) noexcept
 {
 	glDeleteShader( vertexShader );
 	glDeleteShader( fragmentShader );
 }
 
-void Shader::compileShader( unsigned int shader, std::vector<char>& shaderSource ) noexcept( false )
+void Shader::compileShader( unsigned int shader, std::vector<char>& shaderSource )
 {
 	int success;
 
@@ -18,7 +21,7 @@ void Shader::compileShader( unsigned int shader, std::vector<char>& shaderSource
 		throw ( shader );
 }
 
-void Shader::readShader( const char* fileName, std::vector<char>& lines ) noexcept( false )
+void Shader::readShader( const std::string& fileName, std::vector<char>& lines )
 {
 	lines.clear();
 
@@ -35,7 +38,7 @@ void Shader::readShader( const char* fileName, std::vector<char>& lines ) noexce
 		lines.push_back( '\0' );
 }
 
-Shader::Shader( const char* vertexPath, const char* fragmentPath )
+Shader::Shader( const std::string& vertexPath, const std::string& fragmentPath )
 {
 	initializeShaders( vertexPath, fragmentPath );
 }
@@ -57,8 +60,34 @@ void Shader::use()
 	glUseProgram( ID );
 }
 
-void Shader::initializeShaders( const char* vertexShaderPath, 
-								const char* fragmentShaderPath ) noexcept( false )
+void Shader::setValue( const std::string& name, int value )
+{
+	glUniform1i( glGetUniformLocation( ID, name.c_str() ), value );
+}
+
+void Shader::setValue( const std::string& name, float value )
+{
+	glUniform1f( glGetUniformLocation( ID, name.c_str() ), value );
+
+}
+
+void Shader::setValue( const std::string& name, glm::vec3& value )
+{
+	glUniform3fv( glGetUniformLocation( ID, name.c_str() ), 1, glm::value_ptr( value ) );
+}
+
+void Shader::setValue( const std::string& name, glm::mat4& value, bool isTransformNeeded )
+{
+	glUniformMatrix4fv( glGetUniformLocation( ID, name.c_str() ), 1, isTransformNeeded, glm::value_ptr( value ) );
+}
+
+void Shader::setValue( const std::string& name, glm::mat3& value, bool isTransformNeeded )
+{
+	glUniformMatrix3fv( glGetUniformLocation( ID, name.c_str() ), 1, isTransformNeeded, glm::value_ptr( value ) );
+}
+
+void Shader::initializeShaders( const std::string& vertexShaderPath,
+								const std::string& fragmentShaderPath )
 {
 	std::vector<char> shaderSource; //dont forget to manually clean memory allocated inside
 	unsigned int vertexShader = glCreateShader( GL_VERTEX_SHADER );

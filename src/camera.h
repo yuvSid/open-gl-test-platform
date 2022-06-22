@@ -34,6 +34,7 @@ public:
 
 	glm::mat4 getViewMatrix() const;
 	float getFov() const { return glm::radians( Zoom ); }
+	glm::vec3 getPosition() const { return Position; }
 
 	void ProcessKeyboard( Camera_Movement direction, short FPS );
 	void ProcessMouseMovement( float xpos, float ypos, bool constrainPitch = true );
