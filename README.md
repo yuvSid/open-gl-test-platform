@@ -7,6 +7,9 @@ Compilation requires directory with external dependencies. Source tree must look
 ```
 ├───libraries  
 │───├───glad  
+│───├───├───glad  
+│───├───├───KHR  
+│───├───├───glad.c  
 │───├───glfw  
 │───├───glm  
 │───└───stb  
